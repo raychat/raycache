@@ -1,0 +1,47 @@
+{
+  "_from": "raycache@^1.2.3-beta",
+  "_id": "raycache@1.2.3-beta",
+  "_inBundle": false,
+  "_integrity": "sha512-uScFClv3ez8r8MpTIbNF3/fAo/VdjXCXm8LH+fF1xje4UO16O3TT9S1KDUFzm5e2fjGjlfaiEi/iURcSIcV4rg==",
+  "_location": "/raycache",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "raycache@^1.2.3-beta",
+    "name": "raycache",
+    "escapedName": "raycache",
+    "rawSpec": "^1.2.3-beta",
+    "saveSpec": null,
+    "fetchSpec": "^1.2.3-beta"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/raycache/-/raycache-1.2.3-beta.tgz",
+  "_shasum": "d1f6401fa3790143ddde6850074dfe6c225176c5",
+  "_spec": "raycache@^1.2.3-beta",
+  "_where": "C:\\Users\\hamet.gh\\Desktop\\raychat caching",
+  "author": {
+    "name": "hamet gholizadeh",
+    "email": "pm@raychat.io",
+    "url": "https://raychat.io"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "caching mongodb document's as Object in redis in-memory database",
+  "keywords": [
+    "cache",
+    "redis",
+    "mongodb",
+    "ttl",
+    "raychat"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "raycache",
+  "scripts": {
+    "test": "npm test"
+  },
+  "version": "1.2.3-beta"
+}
