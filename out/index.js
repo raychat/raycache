@@ -13,6 +13,8 @@ module.exports = async function (db, options) {
     let obj = {
             username: 'hamet',
             email: 'hamet.gh@gmail.com',
+            wieght: 75,
+            blueEyes: false,
             meta: {
                 avatar: '/avatar.png',
                 age: 19,

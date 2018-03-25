@@ -24,8 +24,10 @@ class Cache extends EventEmitter {
 
         this.collections = new Map();
         this.clients = new Map();
-        this.options = options;
-        this.redisDatabaseCount = 15;
+
+        this._validTypesArr = { 'string': 1, 'boolean': 2, 'object': 3, 'array': 4, 'number': 5 }
+        this._options = options;
+        this._redisDatabaseCount = 15;
 
 
         this._setCollections(db)
@@ -52,9 +54,10 @@ class Cache extends EventEmitter {
                 this._setClients();
                 break;
 
-            case "_setClients":
+            case "setClients":
                 this.emit('ready')
                 break;
+
 
             default:
             // do nothing :)
@@ -73,37 +76,38 @@ class Cache extends EventEmitter {
 
 
         // get all current database collections
-        db.collections({}).then(collections => {
-            if (!this.options.autoCollections || typeof this.options.autoCollections == 'boolean') {
-                let db = 0;
-                for (const collection of collections) {
-                    this.collections.set(collection.s.namespace.split('.')[1], db);
-                    db++;
-                    if (db > this.redisDatabaseCount) {
-                        db = 0;
+        db.collections({})
+            .then(collections => {
+                if (!this._options.autoCollections || typeof this._options.autoCollections == 'boolean') {
+                    let db = 0;
+                    for (const collection of collections) {
+                        this.collections.set(collection.s.namespace.split('.')[1], db);
+                        db++;
+                        if (db > this._redisDatabaseCount) {
+                            db = 0;
+                        }
                     }
                 }
-            }
-            else {
-                const collectionsList = Object.keys(this.options.autoCollections)
-                for (const [index, collection] of collections.entries()) {
-                    for (const collectionName of collectionsList) {
-                        if (collectionName == collection.s.namespace.split('.')[1]) {
+                else {
+                    const collectionsList = Object.keys(this._options.autoCollections)
+                    for (const [index, collection] of collections.entries()) {
+                        for (const collectionName of collectionsList) {
+                            if (collectionName == collection.s.namespace.split('.')[1]) {
 
-                            if (this.options.autoCollections[collectionName] >= 0 && this.options.autoCollections[collectionName] <= this.redisDatabaseCount) {
-                                this.collections.set(collectionName, this.options.autoCollections[collectionName])
-                            }
-                            else {
-                                this.emit('error', { message: "invalid database number", errorNumber: 1000 })
-                                return false;
+                                if (this._options.autoCollections[collectionName] >= 0 && this._options.autoCollections[collectionName] <= this._redisDatabaseCount) {
+                                    this.collections.set(collectionName, this._options.autoCollections[collectionName])
+                                }
+                                else {
+                                    this.emit('error', { message: "invalid database number", errorNumber: 1000 })
+                                    return false;
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            this.emit('task', { task: 'setCollections' })
-        })
+                this.emit('task', { task: 'setCollections' })
+            })
 
 
 
@@ -120,25 +124,61 @@ class Cache extends EventEmitter {
     async _setClients() {
 
 
-        console.log(this.collections)
+
         for (const [key, value] of this.collections) {
             this.clients.set(key, redis.createClient({
                 db: value
             }))
         }
 
-        console.log(this.clients.get('chats'))
+
         this.emit('task', { task: 'setClients' })
 
     }
 
 
-    set(collection, key, value) {
-        return new Promise((resolve, reject) => {
+
+
+
+    set(collection, redisKey, entity) {
+        return new Promise(async (resolve, reject) => {
 
             // console.log(collection)
             // console.log(key)
-            // console.log(value)
+
+
+            let arr = [];
+            let thisFieldType;
+            for (const key of Object.keys(entity)) {
+
+                thisFieldType = typeof entity[key] // type of this field 
+
+
+                console.log(thisFieldType)
+                // if field data type is undefined
+                if (!this._validTypesArr[thisFieldType]) {
+                    this.emit('error', { message: 'invalid field data type', errorNumber: 1001 })
+                    return false;
+                }
+
+
+                switch (thisFieldType) {
+                    case "string":
+                        arr.push(...[key, entity[key], `${key}_raycache_type`, `${this._validTypesArr[thisFieldType]}`])
+                        break
+                    case "boolean":
+                        arr.push(...[key, JSON.stringify(entity[key]), `${key}_raycache_type`, `${this._validTypesArr[thisFieldType]}`])
+                        break
+                    case "number":
+                        arr.push(...[key, entity[key].toString(), `${key}_raycache_type`, `${this._validTypesArr[thisFieldType]}`])
+                        break
+                }
+            }
+
+            console.log(arr)
+
+            await this.clients.get(collection).hmset(redisKey, ...arr)
+
         })
     }
 

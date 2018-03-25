@@ -43,5 +43,9 @@
   "scripts": {
     "test": "npm test"
   },
-  "version": "1.2.3-beta"
+  "version": "1.2.5-beta",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:raychat/raycache.git"
+  }
 }
