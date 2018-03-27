@@ -4,6 +4,11 @@
 const redis = require('redis');
 const { EventEmitter } = require('events')
 const { getKeysValues } = require('../lib/func')
+const bluebird = require('bluebird');
+
+
+bluebird.promisifyAll(redis.RedisClient.prototype);
+bluebird.promisifyAll(redis.Multi.prototype);
 
 class Cache extends EventEmitter {
 
@@ -34,11 +39,14 @@ class Cache extends EventEmitter {
         this._setCollections(db)
 
 
-        this.on('task', (res) => {
+        this.on('ray_task', (res) => {
             this._manageTasks(res);
         })
-        this.on('error', (err) => {
+        this.on('ray_error', (err) => {
             console.error(err)
+        })
+        this.on('ray_command', (res) => {
+            console.log(`command ${res.commandName} called`)
         })
 
     }
@@ -99,7 +107,7 @@ class Cache extends EventEmitter {
                                     this.collections.set(collectionName, this._options.autoCollections[collectionName])
                                 }
                                 else {
-                                    this.emit('error', { message: "invalid database number", errorNumber: 1000 })
+                                    this.emit('ray_error', { message: "invalid database number", errorNumber: 1000 })
                                     return false;
                                 }
                             }
@@ -107,7 +115,7 @@ class Cache extends EventEmitter {
                     }
                 }
 
-                this.emit('task', { task: 'setCollections' })
+                this.emit('ray_task', { task: 'setCollections' })
             })
 
 
@@ -133,7 +141,7 @@ class Cache extends EventEmitter {
         }
 
 
-        this.emit('task', { task: 'setClients' })
+        this.emit('ray_task', { task: 'setClients' })
 
     }
 
@@ -152,20 +160,41 @@ class Cache extends EventEmitter {
                 thisFieldType = typeof entity[key] // type of this field 
                 // if field data type is undefined
                 if (!this._validTypesArr[thisFieldType]) {
-                    this.emit('error', { message: 'invalid field data type', errorNumber: 1001 })
+                    this.emit('ray_error', { message: 'invalid field data type', errorNumber: 1001 })
                     reject(err)
                 }
             }
- 
-            arr.push(...getKeysValues(entity))
 
-            resolve(await this.clients.get(collection).hmset(redisKey, ...arr))
+            arr.push(...getKeysValues(entity))
+            try {
+                this.emit('ray_command', { commandName: 'hmset' })
+                await this.clients.get(collection).hmset(redisKey, ...arr)
+                resolve(redisKey)
+            } catch (err) {
+                reject(err)
+            }
+
 
         })
     }
 
 
-    get(key, value) {
+    get(collection, redisKey, entity) {
+        return new Promise(async (resolve, reject) => {
+            this.emit('ray_command', { commandName: 'hmget' })
+
+            // const s = promisify(this.clients.get(collection).hgetall).bind(this.clients.get(collection));
+
+            // s()
+
+            this.clients.get(collection).hgetallAsync(redisKey).then((s, ss) => {
+
+                console.log(s)
+                console.log(ss)
+            })
+
+
+        })
 
     }
 

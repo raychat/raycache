@@ -10,7 +10,8 @@ module.exports = async function (db, options) {
 
 
 
-    let obj = {
+        let redisKey = 'ID_123'
+        let obj = {
             username: 'hamet',
             email: 'hamet.gh@gmail.com',
             wieght: 75,
@@ -22,7 +23,8 @@ module.exports = async function (db, options) {
                 interestedIn: ['internet', 'ping pong']
             }
         }
-        await cacheIntance.set('agents', 'ID_123', obj)
+        await cacheIntance.set('agents', redisKey, obj)
+        let fetchedObject = await cacheIntance.get('agents', redisKey, ['username'])
 
 
     })
