@@ -3,6 +3,7 @@
 
 const redis = require('redis');
 const { EventEmitter } = require('events')
+const { getKeysValues } = require('../lib/func')
 
 class Cache extends EventEmitter {
 
@@ -143,41 +144,22 @@ class Cache extends EventEmitter {
     set(collection, redisKey, entity) {
         return new Promise(async (resolve, reject) => {
 
-            // console.log(collection)
-            // console.log(key)
-
-
             let arr = [];
             let thisFieldType;
+
             for (const key of Object.keys(entity)) {
 
                 thisFieldType = typeof entity[key] // type of this field 
-
-
-                console.log(thisFieldType)
                 // if field data type is undefined
                 if (!this._validTypesArr[thisFieldType]) {
                     this.emit('error', { message: 'invalid field data type', errorNumber: 1001 })
-                    return false;
-                }
-
-
-                switch (thisFieldType) {
-                    case "string":
-                        arr.push(...[key, entity[key], `${key}_raycache_type`, `${this._validTypesArr[thisFieldType]}`])
-                        break
-                    case "boolean":
-                        arr.push(...[key, JSON.stringify(entity[key]), `${key}_raycache_type`, `${this._validTypesArr[thisFieldType]}`])
-                        break
-                    case "number":
-                        arr.push(...[key, entity[key].toString(), `${key}_raycache_type`, `${this._validTypesArr[thisFieldType]}`])
-                        break
+                    reject(err)
                 }
             }
+ 
+            arr.push(...getKeysValues(entity))
 
-            console.log(arr)
-
-            await this.clients.get(collection).hmset(redisKey, ...arr)
+            resolve(await this.clients.get(collection).hmset(redisKey, ...arr))
 
         })
     }
