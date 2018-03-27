@@ -34,6 +34,7 @@ class Cache extends EventEmitter {
         this._validTypesArr = { 'string': 1, 'boolean': 2, 'object': 3, 'array': 4, 'number': 5 }
         this._options = options;
         this._redisDatabaseCount = 15;
+        this._postfix = this._options.postfixType || '_raycacheType'
 
 
         this._setCollections(db)
@@ -165,11 +166,10 @@ class Cache extends EventEmitter {
                 }
             }
 
-            arr.push(...getKeysValues(entity))
+            arr.push(...getKeysValues(entity, this._postfix))
             try {
                 this.emit('ray_command', { commandName: 'hmset' })
-                await this.clients.get(collection).hmset(redisKey, ...arr)
-                resolve(redisKey)
+                resolve(await this.clients.get(collection).hmsetAsync(redisKey, ...arr))
             } catch (err) {
                 reject(err)
             }
@@ -179,19 +179,21 @@ class Cache extends EventEmitter {
     }
 
 
-    get(collection, redisKey, entity) {
+    get(collection, redisKey, fields) {
         return new Promise(async (resolve, reject) => {
             this.emit('ray_command', { commandName: 'hmget' })
 
-            // const s = promisify(this.clients.get(collection).hgetall).bind(this.clients.get(collection));
+            let obj = {}
+            if (fields && Array.isArray(fields) && fields.length > 0) {
 
-            // s()
+                console.log(fields)
+            } else {
 
-            this.clients.get(collection).hgetallAsync(redisKey).then((s, ss) => {
+                obj = await this.clients.get(collection).hgetallAsync(redisKey)
+            }
 
-                console.log(s)
-                console.log(ss)
-            })
+
+            console.log(obj)
 
 
         })

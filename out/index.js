@@ -24,7 +24,7 @@ module.exports = async function (db, options) {
             }
         }
         await cacheIntance.set('agents', redisKey, obj)
-        let fetchedObject = await cacheIntance.get('agents', redisKey, ['username'])
+        let fetchedObject = await cacheIntance.get('agents', redisKey)
 
 
     })
