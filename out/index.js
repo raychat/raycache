@@ -23,8 +23,15 @@ module.exports = async function (db, options) {
                 interestedIn: ['internet', 'ping pong']
             }
         }
-        await cacheIntance.set('agents', redisKey, obj)
-        let fetchedObject = await cacheIntance.get('agents', redisKey)
+        
+            await cacheIntance.set('agents', redisKey, obj)
+            let fetchedObject = await cacheIntance.get('agents', redisKey, 
+            
+            ['username', 'meta.avatar', 'meta.age', 'meta.account.type', 'meta.account.test.hi']
+        
+        )
+        
+        
 
 
     })

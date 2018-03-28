@@ -3,7 +3,7 @@
 
 const redis = require('redis');
 const { EventEmitter } = require('events')
-const { getKeysValues } = require('../lib/func')
+const { getKeysValues, concatPostFix, keyValToObj } = require('../lib/func')
 const bluebird = require('bluebird');
 
 
@@ -184,21 +184,38 @@ class Cache extends EventEmitter {
             this.emit('ray_command', { commandName: 'hmget' })
 
             let obj = {}
+
+            // if needed fields is defined
             if (fields && Array.isArray(fields) && fields.length > 0) {
 
-                console.log(fields)
+                try {
+                    let postfixConcatedArr = concatPostFix(fields, this._postfix);
+
+                    console.log(postfixConcatedArr)
+                }catch(err) {
+
+                    console.error(err)
+                }
+
+                // let foundedFields = await this.clients.get(collection).hmgetAsync(redisKey, postfixConcatedArr)
+                // obj = keyValToObj(postfixConcatedArr, foundedFields)
+                
+
             } else {
 
                 obj = await this.clients.get(collection).hgetallAsync(redisKey)
             }
 
 
-            console.log(obj)
+            // console.log(obj)
 
 
         })
 
     }
+
+
+
 
 
 }
