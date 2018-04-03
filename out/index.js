@@ -13,25 +13,31 @@ module.exports = async function (db, options) {
         let redisKey = 'ID_123'
         let obj = {
             username: 'hamet',
-            email: 'hamet.gh@gmail.com',
-            wieght: 75,
-            blueEyes: false,
             meta: {
-                avatar: '/avatar.png',
-                age: 19,
-                active: false,
-                interestedIn: ['internet', 'ping pong']
-            }
-        }
-        
-            await cacheIntance.set('agents', redisKey, obj)
-            let fetchedObject = await cacheIntance.get('agents', redisKey, 
+                active: true,
+                avatar: '123',
+                array: [{
+                    field: 1,
+                    field2: 2,
+                }]
+                
+            },
+            arr: [
+                123
+            ]
             
-            ['username', 'meta.avatar', 'meta.age', 'meta.account.type', 'meta.account.test.hi']
-        
-        )
-        
-        
+        }
+
+        console.time('set')
+        await cacheIntance.set('agents', redisKey, obj)
+
+        // let fetchedObject = await cacheIntance.get('agents', redisKey, ['meta'])
+        let fetchedObject = await cacheIntance.get('agents', redisKey)
+        // console.log(fetchedObject)
+        console.timeEnd('set')
+
+
+       
 
 
     })

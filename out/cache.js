@@ -3,7 +3,11 @@
 
 const redis = require('redis');
 const { EventEmitter } = require('events')
-const { getKeysValues, concatPostFix, keyValToObj } = require('../lib/func')
+const {
+    getKeysValues,
+    concatPostFix,
+    keyValToObj,
+    clearObj } = require('../lib/func')
 const bluebird = require('bluebird');
 
 
@@ -31,7 +35,7 @@ class Cache extends EventEmitter {
         this.collections = new Map();
         this.clients = new Map();
 
-        this._validTypesArr = { 'string': 1, 'boolean': 2, 'object': 3, 'array': 4, 'number': 5 }
+        this._validTypesArr = ['string', 'boolean', 'object', 'array', 'number']
         this._options = options;
         this._redisDatabaseCount = 15;
         this._postfix = this._options.postfixType || '_raycacheType'
@@ -160,7 +164,7 @@ class Cache extends EventEmitter {
 
                 thisFieldType = typeof entity[key] // type of this field 
                 // if field data type is undefined
-                if (!this._validTypesArr[thisFieldType]) {
+                if (this._validTypesArr.indexOf(thisFieldType) == -1) {
                     this.emit('ray_error', { message: 'invalid field data type', errorNumber: 1001 })
                     reject(err)
                 }
@@ -181,33 +185,42 @@ class Cache extends EventEmitter {
 
     get(collection, redisKey, fields) {
         return new Promise(async (resolve, reject) => {
-            this.emit('ray_command', { commandName: 'hmget' })
 
             let obj = {}
 
             // if needed fields is defined
             if (fields && Array.isArray(fields) && fields.length > 0) {
 
-                try {
-                    let postfixConcatedArr = concatPostFix(fields, this._postfix);
 
-                    console.log(postfixConcatedArr)
-                }catch(err) {
+                // concat posfix for keys
+                let postfixConcatedArr = concatPostFix(fields, this._postfix);
 
-                    console.error(err)
-                }
 
-                // let foundedFields = await this.clients.get(collection).hmgetAsync(redisKey, postfixConcatedArr)
-                // obj = keyValToObj(postfixConcatedArr, foundedFields)
-                
+                console.log(postfixConcatedArr)
+                this.emit('ray_command', { commandName: 'hmget' })
+
+                // get values from redis with given key and fileds
+                let foundedFieldsArr = await this.clients
+                    .get(collection)
+                    .hmgetAsync(redisKey, postfixConcatedArr)
+
+                    
+                obj = keyValToObj(postfixConcatedArr, foundedFieldsArr)
+
 
             } else {
 
+                this.emit('ray_command', { commandName: 'hgetall' })
+
+                // get all values with given key
                 obj = await this.clients.get(collection).hgetallAsync(redisKey)
             }
 
-
             // console.log(obj)
+            obj = clearObj(obj, this._postfix, this._validTypesArr)
+
+
+            resolve(obj)
 
 
         })
