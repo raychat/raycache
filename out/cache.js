@@ -5,9 +5,12 @@ const redis = require('redis');
 const { EventEmitter } = require('events')
 const {
     getKeysValues,
-    concatPostFix,
+    arrayChanges,
     keyValToObj,
-    clearObj } = require('../lib/func')
+    clearObj,
+    findExactFields,
+    manageFields
+} = require('../lib/func')
 const bluebird = require('bluebird');
 
 
@@ -193,30 +196,46 @@ class Cache extends EventEmitter {
 
 
                 // concat posfix for keys
-                let postfixConcatedArr = concatPostFix(fields, this._postfix);
+                let arr = arrayChanges(fields);
 
 
-                console.log(postfixConcatedArr)
+                /**
+                 * TODO :  for best performance redesign this part
+                 * inested of fetch all keys with hkeys Command then
+                 * loop for finding fields which match pattern
+                 * use LUA Script for finding fields or directrly finding value
+                 */
+                let foundedKeys = await this.clients
+                    .get(collection)
+                    .hkeysAsync(redisKey);
+
+                // e.x fields => meta return meta.name, meta.ex, meta.*
+                arr = findExactFields(foundedKeys, fields)
+
+                // split and concat: [meta.avatar] =>  [meta, meta_postFix, meta.avatar, meta.avatar_postFix]
+                arr = manageFields(arr, this._postfix)
+
+
                 this.emit('ray_command', { commandName: 'hmget' })
 
                 // get values from redis with given key and fileds
                 let foundedFieldsArr = await this.clients
                     .get(collection)
-                    .hmgetAsync(redisKey, postfixConcatedArr)
+                    .hmgetAsync(redisKey, result)
 
-                    
-                obj = keyValToObj(postfixConcatedArr, foundedFieldsArr)
-
+                obj = keyValToObj(result, foundedFieldsArr)
 
             } else {
 
                 this.emit('ray_command', { commandName: 'hgetall' })
 
                 // get all values with given key
-                obj = await this.clients.get(collection).hgetallAsync(redisKey)
+                obj = await this.clients
+                    .get(collection)
+                    .hgetallAsync(redisKey)
             }
 
-            // console.log(obj)
+
             obj = clearObj(obj, this._postfix, this._validTypesArr)
 
 
