@@ -31,10 +31,10 @@ module.exports = async function (db, options) {
         console.time('set')
         // await cacheIntance.set('agents', redisKey, obj)
 
-        let fetchedObject = await cacheIntance.get('agents', redisKey, ['meta'])
+        let fetchedObject = await cacheIntance.get('agents', redisKey, ['meta.avatar'])
         // // let fetchedObject = await cacheIntance.get('agents', redisKey)
         console.log(fetchedObject)
-        // console.timeEnd('set')
+        console.timeEnd('set')
 
        
 

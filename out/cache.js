@@ -190,6 +190,8 @@ class Cache extends EventEmitter {
         return new Promise(async (resolve, reject) => {
 
             let obj = {}
+            const notFounds = []
+
 
             // if needed fields is defined
             if (fields && Array.isArray(fields) && fields.length > 0) {
@@ -209,21 +211,41 @@ class Cache extends EventEmitter {
                     .get(collection)
                     .hkeysAsync(redisKey);
 
+
+
+
+
+                // not founds keys
+                fields.forEach(key => {
+                    if (foundedKeys.indexOf(key) == -1) {
+                        notFounds.push(key)
+                    }
+                })
+
+
+
+
+
                 // e.x fields => meta return meta.name, meta.ex, meta.*
-                arr = findExactFields(foundedKeys, fields)
+                arr = findExactFields(foundedKeys, fields, this._postfix)
 
                 // split and concat: [meta.avatar] =>  [meta, meta_postFix, meta.avatar, meta.avatar_postFix]
                 arr = manageFields(arr, this._postfix)
 
 
+
                 this.emit('ray_command', { commandName: 'hmget' })
 
-                // get values from redis with given key and fileds
-                let foundedFieldsArr = await this.clients
-                    .get(collection)
-                    .hmgetAsync(redisKey, result)
+                if (arr.length > 0) {
 
-                obj = keyValToObj(result, foundedFieldsArr)
+                    // get values from redis with given key and fileds
+                    let foundedFieldsArr = await this.clients
+                        .get(collection)
+                        .hmgetAsync(redisKey, arr)
+                    obj = keyValToObj(arr, foundedFieldsArr)
+
+                }
+
 
             } else {
 
@@ -239,7 +261,7 @@ class Cache extends EventEmitter {
             obj = clearObj(obj, this._postfix, this._validTypesArr)
 
 
-            resolve(obj)
+            resolve({ obj, notFounds })
 
 
         })
