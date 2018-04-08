@@ -12,6 +12,7 @@ const {
     manageFields
 } = require('../lib/func')
 const bluebird = require('bluebird');
+const _ = require('lodash')
 
 
 bluebird.promisifyAll(redis.RedisClient.prototype);
@@ -43,6 +44,11 @@ class Cache extends EventEmitter {
         this._redisDatabaseCount = 15;
         this._postfix = this._options.postfixType || '_raycacheType'
 
+        this.ttl = this._options.options.ttl || 3000
+        this.defaultKeys = {
+            mongoose: '_id'
+        }
+        this.stringify = this._options.stringify || false;
 
         this._setCollections(db)
 
@@ -85,46 +91,61 @@ class Cache extends EventEmitter {
 
     /**
      * define which collection should be cached
-     * @param {*databse} db 
+     * @param {Object} connection 
      */
-    _setCollections(db) {
+    _setCollections(connection) {
 
+        let collections = []
 
+        connection.connection.on('open', ref => {
+            connection.connection.db.listCollections().toArray((err, names) => {
+                if (err) {
+                    this.emit('ray_error', { message: err, errorNumber: 1002 })
+                    return;
+                }
 
+                if (names.length) {
+                    names.forEach(key => {
+                        collections.push(key.name)
+                    })
+                    // get all current database collections
 
-        // get all current database collections
-        db.collections({})
-            .then(collections => {
-                if (!this._options.autoCollections || typeof this._options.autoCollections == 'boolean') {
-                    let db = 0;
-                    for (const collection of collections) {
-                        this.collections.set(collection.s.namespace.split('.')[1], db);
-                        db++;
-                        if (db > this._redisDatabaseCount) {
-                            db = 0;
+                    if (!this._options.autoCollections || typeof this._options.autoCollections == 'boolean') {
+                        let db = 0;
+                        for (const collection of collections) {
+                            this.collections.set(collection, db);
+                            db++;
+                            if (db > this._redisDatabaseCount) {
+                                db = 0;
+                            }
                         }
                     }
-                }
-                else {
-                    const collectionsList = Object.keys(this._options.autoCollections)
-                    for (const [index, collection] of collections.entries()) {
-                        for (const collectionName of collectionsList) {
-                            if (collectionName == collection.s.namespace.split('.')[1]) {
+                    else {
+                        const collectionsList = Object.keys(this._options.autoCollections)
+                        for (const [index, collection] of collections.entries()) {
+                            for (const collectionName of collectionsList) {
+                                if (collectionName == collection) {
 
-                                if (this._options.autoCollections[collectionName] >= 0 && this._options.autoCollections[collectionName] <= this._redisDatabaseCount) {
-                                    this.collections.set(collectionName, this._options.autoCollections[collectionName])
-                                }
-                                else {
-                                    this.emit('ray_error', { message: "invalid database number", errorNumber: 1000 })
-                                    return false;
+                                    if (this._options.autoCollections[collectionName] >= 0 && this._options.autoCollections[collectionName] <= this._redisDatabaseCount) {
+                                        this.collections.set(collectionName, this._options.autoCollections[collectionName])
+                                    }
+                                    else {
+                                        this.emit('ray_error', { message: "invalid database number", errorNumber: 1000 })
+                                        return false;
+                                    }
                                 }
                             }
                         }
                     }
+
+                    this.emit('ray_task', { task: 'setCollections' })
                 }
 
-                this.emit('ray_task', { task: 'setCollections' })
-            })
+
+            });
+        })
+
+
 
 
 
@@ -157,11 +178,14 @@ class Cache extends EventEmitter {
 
 
 
-    set(collection, redisKey, entity) {
+    set(collection, redisKey, ent) {
         return new Promise(async (resolve, reject) => {
 
             let arr = [];
             let thisFieldType;
+
+            let entity = ent.toJSON()
+
 
             for (const key of Object.keys(entity)) {
 
@@ -201,6 +225,7 @@ class Cache extends EventEmitter {
                 let arr = arrayChanges(fields);
 
 
+                console.log(collection)
                 /**
                  * TODO :  for best performance redesign this part
                  * inested of fetch all keys with hkeys Command then
@@ -255,6 +280,12 @@ class Cache extends EventEmitter {
                 obj = await this.clients
                     .get(collection)
                     .hgetallAsync(redisKey)
+
+            }
+
+            if (_.isEmpty(obj) || obj == "undefined") {
+                return resolve({ obj: {}, notFounds })
+
             }
 
 
@@ -266,6 +297,12 @@ class Cache extends EventEmitter {
 
         })
 
+    }
+
+
+
+    getTtl() {
+        return this.ttl;
     }
 
 

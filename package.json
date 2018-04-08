@@ -1,35 +1,39 @@
 {
-  "_from": "raycache@^1.2.3-beta",
-  "_id": "raycache@1.2.3-beta",
+  "_from": "raycache@^1.3.5",
+  "_id": "raycache@1.3.5",
   "_inBundle": false,
-  "_integrity": "sha512-uScFClv3ez8r8MpTIbNF3/fAo/VdjXCXm8LH+fF1xje4UO16O3TT9S1KDUFzm5e2fjGjlfaiEi/iURcSIcV4rg==",
+  "_integrity": "sha512-0FC1tHVG4fIkxcjaKijbKweo7BQ30FmNjBsN++48KjhX08+4aPM11OjLAoOpBwrVChPwCEVbyDW2Fm+oOLOTIA==",
   "_location": "/raycache",
   "_phantomChildren": {},
   "_requested": {
     "type": "range",
     "registry": true,
-    "raw": "raycache@^1.2.3-beta",
+    "raw": "raycache@^1.3.5",
     "name": "raycache",
     "escapedName": "raycache",
-    "rawSpec": "^1.2.3-beta",
+    "rawSpec": "^1.3.5",
     "saveSpec": null,
-    "fetchSpec": "^1.2.3-beta"
+    "fetchSpec": "^1.3.5"
   },
   "_requiredBy": [
     "/"
   ],
-  "_resolved": "https://registry.npmjs.org/raycache/-/raycache-1.2.3-beta.tgz",
-  "_shasum": "d1f6401fa3790143ddde6850074dfe6c225176c5",
-  "_spec": "raycache@^1.2.3-beta",
+  "_resolved": "https://registry.npmjs.org/raycache/-/raycache-1.3.5.tgz",
+  "_shasum": "44b1de84dc7dd599c4d6743207f5bf22cfbde321",
+  "_spec": "raycache@^1.3.5",
   "_where": "C:\\Users\\hamet.gh\\Desktop\\raychat caching",
   "author": {
     "name": "hamet gholizadeh",
     "email": "pm@raychat.io",
     "url": "https://raychat.io"
   },
+  "bugs": {
+    "url": "https://github.com/raychat/raycache/issues"
+  },
   "bundleDependencies": false,
   "deprecated": false,
   "description": "caching mongodb document's as Object in redis in-memory database",
+  "homepage": "https://github.com/raychat/raycache#readme",
   "keywords": [
     "cache",
     "redis",
@@ -40,12 +44,12 @@
   "license": "ISC",
   "main": "index.js",
   "name": "raycache",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/raychat/raycache.git"
+  },
   "scripts": {
     "test": "npm test"
   },
-  "version": "1.2.5-beta",
-  "repository": {
-    "type": "git",
-    "url": "git@github.com:raychat/raycache.git"
-  }
+  "version": "1.3.5"
 }
