@@ -4,7 +4,7 @@ const _ = require('lodash')
 module.exports = (mongoose, cache) => {
 
     mongoose.Query.prototype.raycache = function (entity) {
-        let ent = entity
+        let ent = entity || {}
 
         this.raycache = {
             enabled: true,
@@ -20,10 +20,10 @@ module.exports = (mongoose, cache) => {
             }
         }
         if (ent.ttl) {
-            this.raycache._ttl = Number(ent.ttl) || cache.ttl
+            this.raycache.ttl = Number(ent.ttl) || cache.ttl
         }
         else {
-            this.raycache._ttl = cache.ttl
+            this.raycache.ttl = cache.ttl
         }
 
         if (ent.key) {
@@ -37,6 +37,8 @@ module.exports = (mongoose, cache) => {
                 }
             }
 
+        } else {
+            this.raycache.redisKey = this._conditions[cache.defaultKeys.mongoose]
         }
 
         if (_.isBoolean(ent.stringify)) {
@@ -73,7 +75,7 @@ module.exports = (mongoose, cache) => {
 
     const exec = mongoose.Query.prototype.exec;
     mongoose.Query.prototype.exec = function (op, callback = function () { }) {
-        console.time('readed in ')
+
 
         if (!this.raycache.enabled) return exec.apply(this, arguments);
 
@@ -88,85 +90,88 @@ module.exports = (mongoose, cache) => {
         const model = this.model.modelName;
         return new Promise(async (resolve, reject) => {
 
-            const found = await cache.get(model, this.raycache.redisKey, this.raycache.fields)
+            // TODO:: after update oprator 
+            // save updated document in redis
 
+            if (this.op == "updateOne"
+                || this.op == 'findOneAndRemove'
+                || this.op == 'findByIdAndRemove'
+                || this.op == "deleteOne") {
 
+                await cache.del(model, this.raycache.redisKey)
 
-
-
-
-            // if document does not exists in cache or not complete
-            if (
-                _.isEmpty(found.obj) || // 
-
-                !_.isEmpty(found.notFounds) ||
-
-                (
-                    this.raycache.allFields &&
-                    !found.obj.hasOwnProperty(`isAllFields_${this.raycache._postfix}`)
-                )
-            ) {
-
-                // run exec
-                exec
-                    .call(this)
-                    .then(async (results) => {
-
-                        if (_.isNull(results)) {
-                            callback(null, results)
-                            return resolve(results);
-                        }
-
-                        console.timeEnd('readed in ')
-
-                        cache.set(model, this.raycache.redisKey, results, this.raycache.allFields)
+                exec.call(this)
+                    .then(results => {
                         callback(null, results);
                         return resolve(results);
-
-
                     })
-                    .catch((err) => {
+                    .catch(err => {
                         callback(err);
                         reject(err);
                     });
-            } else {
-                console.timeEnd('readed in ')
-                callback(null, found.obj);
-                return resolve(found.obj);
 
+            } else if (this.op == "findOne"
+                || this.op == "findById") {
+                const found = await cache.get(model, this.raycache.redisKey, this.raycache.fields)
+
+                // if document does not exists in cache or not complete
+                if (
+                    _.isEmpty(found.obj) || // 
+
+                    !_.isEmpty(found.notFounds) ||
+
+                    (
+                        this.raycache.allFields &&
+                        !found.obj.hasOwnProperty(`isAllFields_${this.raycache._postfix}`)
+                    )
+                ) {
+
+                    // run exec
+                    exec
+                        .call(this)
+                        .then(async (results) => {
+
+                            if (_.isNull(results)) {
+                                callback(null, results)
+                                return resolve(results);
+                            }
+
+
+
+                            cache.set(model
+                                , this.raycache.redisKey
+                                , results
+                                , this.raycache.ttl
+                                , this.raycache.allFields)
+
+                            callback(null, results);
+                            return resolve(results);
+
+
+                        })
+                        .catch((err) => {
+                            callback(err);
+                            reject(err);
+                        });
+                } else {
+
+                    callback(null, found.obj);
+                    return resolve(found.obj);
+
+                }
             }
 
-
-
-            // if (cachedResults) {
-            //     if (isCount) {
-            //         callback(null, cachedResults);
-            //         return resolve(cachedResults);
-            //     }
-
-            //     if (!isLean) {
-            //         const constructor = mongoose.model(model);
-            //         cachedResults = Array.isArray(cachedResults) ?
-            //             cachedResults.map(inflateModel(constructor)) :
-            //             inflateModel(constructor)(cachedResults);
-            //     }
-
-            //     callback(null, cachedResults);
-            //     return resolve(cachedResults);
-            // }
-
-            // exec
-            //     .call(this)
-            //     .then((results) => {
-            //         cache.set(key, results, ttl, () => {
-            //             callback(null, results);
-            //             return resolve(results);
-            //         });
-            //     })
-            //     .catch((err) => {
-            //         callback(err);
-            //         reject(err);
-            //     });
+            else {
+                exec.call(this)
+                    .then(results => {
+                        callback(null, results);
+                        return resolve(results);
+                    })
+                    .catch(err => {
+                        callback(err);
+                        reject(err);
+                    });
+            }
 
         });
     };

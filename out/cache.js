@@ -15,6 +15,8 @@ const bluebird = require('bluebird');
 const _ = require('lodash')
 
 
+
+
 bluebird.promisifyAll(redis.RedisClient.prototype);
 bluebird.promisifyAll(redis.Multi.prototype);
 
@@ -31,13 +33,13 @@ class Cache extends EventEmitter {
 
     /**
      * constructor with async await
-     * @param {*database} db 
+     * @param {Object} db 
      */
     async _initialize(db, options) {
 
 
         this.collections = new Map();
-        this.clients = new Map();
+        this.clients = {}
 
         this._validTypesArr = ['string', 'boolean', 'object', 'array', 'number', 'objectId', 'date']
         this._options = options;
@@ -45,13 +47,9 @@ class Cache extends EventEmitter {
         this._postfix = this._options.postfixType || '_raycacheType'
 
         this.ttl = this._options.options.ttl || 3000
-        this.defaultKeys = {
-            mongoose: '_id'
-        }
+        this.defaultKeys = { mongoose: '_id' }
         this.stringify = this._options.stringify || false;
-
-        this.alwaysReturnedFields =
-            this._options.alwaysReturnedFields;
+        this.alwaysReturnedField = this._options.alwaysReturnedField;
 
         this._setCollections(db)
 
@@ -167,9 +165,9 @@ class Cache extends EventEmitter {
 
 
         for (const [key, value] of this.collections) {
-            this.clients.set(key, redis.createClient({
+            this.clients[key] = redis.createClient({
                 db: value
-            }))
+            })
         }
 
 
@@ -180,8 +178,15 @@ class Cache extends EventEmitter {
 
 
 
-
-    set(collection, redisKey, ent, isAllfields) {
+    /**
+     * save object into the redis
+     * @param {String} collection 
+     * @param {String} redisKey 
+     * @param {Object} ent 
+     * @param {Number} expire 
+     * @param {Boolean} isAllfields 
+     */
+    set(collection, redisKey, ent, expire, isAllfields) {
         return new Promise(async (resolve, reject) => {
 
             let arr = [];
@@ -203,10 +208,12 @@ class Cache extends EventEmitter {
             arr.push(...getKeysValues(entity, this._postfix))
             if (isAllfields) arr.push(...[`isAllFields_${this._postfix}`, true])
             try {
+
                 this.emit('ray_command', { commandName: 'hmset' })
-                resolve(await this.clients
-                    .get(collection)
-                    .hmsetAsync(redisKey, ...arr))
+                this.clients[collection].hmset(redisKey, ...arr)
+                this.clients[collection].expire(redisKey, expire || this.ttl);
+
+                resolve(true)
             } catch (err) {
                 reject(err)
             }
@@ -216,6 +223,12 @@ class Cache extends EventEmitter {
     }
 
 
+    /**
+     * get redis hashes with specific key
+     * @param {String} collection 
+     * @param {String} redisKey 
+     * @param {Array} fields 
+     */
     get(collection, redisKey, fields) {
         return new Promise(async (resolve, reject) => {
 
@@ -227,8 +240,8 @@ class Cache extends EventEmitter {
             if (fields && Array.isArray(fields) && fields.length > 0) {
 
 
-                if (this.alwaysReturnedFields && fields.indexOf(this.alwaysReturnedFields) == -1) {
-                    fields.push(this.alwaysReturnedFields)
+                if (this.alwaysReturnedField && fields.indexOf(this.alwaysReturnedField) == -1) {
+                    fields.push(this.alwaysReturnedField)
                 }
 
 
@@ -242,8 +255,7 @@ class Cache extends EventEmitter {
                  * loop for finding fields which match pattern
                  * use LUA Script for finding fields or directrly finding value
                  */
-                let foundedKeys = await this.clients
-                    .get(collection)
+                let foundedKeys = await this.clients[collection]
                     .hkeysAsync(redisKey);
 
 
@@ -274,8 +286,7 @@ class Cache extends EventEmitter {
                 if (arr.length > 0) {
 
                     // get values from redis with given key and fileds
-                    let foundedFieldsArr = await this.clients
-                        .get(collection)
+                    let foundedFieldsArr = await this.clients[collection]
                         .hmgetAsync(redisKey, arr)
                     obj = keyValToObj(arr, foundedFieldsArr)
 
@@ -287,8 +298,7 @@ class Cache extends EventEmitter {
                 this.emit('ray_command', { commandName: 'hgetall' })
 
                 // get all values with given key
-                obj = await this.clients
-                    .get(collection)
+                obj = await this.clients[collection]
                     .hgetallAsync(redisKey)
 
 
@@ -313,8 +323,26 @@ class Cache extends EventEmitter {
 
 
 
-    getTtl() {
-        return this.ttl;
+    /**
+     * delete cached document from redis
+     * @param {String} collection 
+     * @param {String} redisKey 
+     */
+    del(collection, redisKey) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                this.emit('ray_command', { commandName: 'hdelAsync' })
+
+                let deletedKey = await this.clients[collection]
+                    .delAsync(redisKey);
+
+
+                resolve(deletedKey)
+            } catch (err) {
+                reject(err)
+
+            }
+        })
     }
 
 
