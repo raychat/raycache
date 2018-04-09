@@ -39,7 +39,7 @@ class Cache extends EventEmitter {
         this.collections = new Map();
         this.clients = new Map();
 
-        this._validTypesArr = ['string', 'boolean', 'object', 'array', 'number']
+        this._validTypesArr = ['string', 'boolean', 'object', 'array', 'number', 'objectId', 'date']
         this._options = options;
         this._redisDatabaseCount = 15;
         this._postfix = this._options.postfixType || '_raycacheType'
@@ -49,6 +49,9 @@ class Cache extends EventEmitter {
             mongoose: '_id'
         }
         this.stringify = this._options.stringify || false;
+
+        this.alwaysReturnedFields =
+            this._options.alwaysReturnedFields;
 
         this._setCollections(db)
 
@@ -178,7 +181,7 @@ class Cache extends EventEmitter {
 
 
 
-    set(collection, redisKey, ent) {
+    set(collection, redisKey, ent, isAllfields) {
         return new Promise(async (resolve, reject) => {
 
             let arr = [];
@@ -198,9 +201,12 @@ class Cache extends EventEmitter {
             }
 
             arr.push(...getKeysValues(entity, this._postfix))
+            if (isAllfields) arr.push(...[`isAllFields_${this._postfix}`, true])
             try {
                 this.emit('ray_command', { commandName: 'hmset' })
-                resolve(await this.clients.get(collection).hmsetAsync(redisKey, ...arr))
+                resolve(await this.clients
+                    .get(collection)
+                    .hmsetAsync(redisKey, ...arr))
             } catch (err) {
                 reject(err)
             }
@@ -221,11 +227,15 @@ class Cache extends EventEmitter {
             if (fields && Array.isArray(fields) && fields.length > 0) {
 
 
+                if (this.alwaysReturnedFields && fields.indexOf(this.alwaysReturnedFields) == -1) {
+                    fields.push(this.alwaysReturnedFields)
+                }
+
+
                 // concat posfix for keys
                 let arr = arrayChanges(fields);
 
 
-                console.log(collection)
                 /**
                  * TODO :  for best performance redesign this part
                  * inested of fetch all keys with hkeys Command then
@@ -281,6 +291,7 @@ class Cache extends EventEmitter {
                     .get(collection)
                     .hgetallAsync(redisKey)
 
+
             }
 
             if (_.isEmpty(obj) || obj == "undefined") {
@@ -291,6 +302,7 @@ class Cache extends EventEmitter {
 
             obj = clearObj(obj, this._postfix, this._validTypesArr)
 
+            if (obj.hasOwnProperty(`isAllFields_${this._postfix}`)) delete obj[`isAllFields_${this._postfix}`]
 
             resolve({ obj, notFounds })
 

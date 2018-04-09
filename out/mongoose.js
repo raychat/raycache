@@ -2,12 +2,13 @@ const _ = require('lodash')
 
 
 module.exports = (mongoose, cache) => {
-    console.log('hamet')
+
     mongoose.Query.prototype.raycache = function (entity) {
         let ent = entity
 
         this.raycache = {
-            enabled: true
+            enabled: true,
+            postFix: cache._postfix
         }
 
 
@@ -46,6 +47,7 @@ module.exports = (mongoose, cache) => {
 
 
         if (this._fields) {
+            this.raycache.allFields = false;
             const keys = Object.keys(this._fields);
             this.raycache.fields = []
             for (let k of keys) {
@@ -58,6 +60,8 @@ module.exports = (mongoose, cache) => {
                 }
             }
 
+        } else {
+            this.raycache.allFields = true;
         }
 
 
@@ -69,6 +73,8 @@ module.exports = (mongoose, cache) => {
 
     const exec = mongoose.Query.prototype.exec;
     mongoose.Query.prototype.exec = function (op, callback = function () { }) {
+        console.time('readed in ')
+
         if (!this.raycache.enabled) return exec.apply(this, arguments);
 
         if (typeof op === 'function') {
@@ -81,12 +87,25 @@ module.exports = (mongoose, cache) => {
 
         const model = this.model.modelName;
         return new Promise(async (resolve, reject) => {
-            console.log(this.raycache)
-            const found = await cache.get(model, this.raycache.redisKey, this.raycache.fields)
-            console.log(found)
 
-            // if document does not exists in cache
-            if (_.isEmpty(found.obj)) {
+            const found = await cache.get(model, this.raycache.redisKey, this.raycache.fields)
+
+
+
+
+
+
+            // if document does not exists in cache or not complete
+            if (
+                _.isEmpty(found.obj) || // 
+
+                !_.isEmpty(found.notFounds) ||
+
+                (
+                    this.raycache.allFields &&
+                    !found.obj.hasOwnProperty(`isAllFields_${this.raycache._postfix}`)
+                )
+            ) {
 
                 // run exec
                 exec
@@ -98,17 +117,23 @@ module.exports = (mongoose, cache) => {
                             return resolve(results);
                         }
 
-                        cache.set(model, this.raycache.redisKey, results)
+                        console.timeEnd('readed in ')
+
+                        cache.set(model, this.raycache.redisKey, results, this.raycache.allFields)
                         callback(null, results);
                         return resolve(results);
 
-                        
+
                     })
                     .catch((err) => {
-                        console.log(err)
                         callback(err);
                         reject(err);
                     });
+            } else {
+                console.timeEnd('readed in ')
+                callback(null, found.obj);
+                return resolve(found.obj);
+
             }
 
 
