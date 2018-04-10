@@ -34,6 +34,7 @@ raycache(mongoose, {
     ttl: 50
   },
   collections: ['agents'],
+  postfixType: '_type', 
   alwaysReturnedField: '_id'
 })
 ```
@@ -43,6 +44,7 @@ raycache(mongoose, {
 * ```mongoose```: a mongoose object ```required```
 * ```options```:  redis in-memroy database options [redis.createClient()](https://github.com/NodeRedis/node_redis#options-object-properties) ```required```
 * ```collections```: list of your database collections which need to be caching   ```required```
+* ```postfixType```: raycache use this string for concating fields which hold main fields data types   ```required```
 * ```alwaysReturnedField``` field name which raycache will always returned in all kind of querys ```optional```
 
 all you need after initializing raycache is
