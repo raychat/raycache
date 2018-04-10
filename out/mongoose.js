@@ -90,7 +90,7 @@ module.exports = (mongoose, cache) => {
         const model = this.model.modelName;
         return new Promise(async (resolve, reject) => {
 
-            // TODO:: after update oprator 
+            // TODO:: after update  
             // save updated document in redis
 
             if (this.op == "updateOne"
@@ -114,6 +114,7 @@ module.exports = (mongoose, cache) => {
                 || this.op == "findById") {
                 const found = await cache.get(model, this.raycache.redisKey, this.raycache.fields)
 
+
                 // if document does not exists in cache or not complete
                 if (
                     _.isEmpty(found.obj) || // 
@@ -122,7 +123,7 @@ module.exports = (mongoose, cache) => {
 
                     (
                         this.raycache.allFields &&
-                        !found.obj.hasOwnProperty(`isAllFields_${this.raycache._postfix}`)
+                        !found.obj.hasOwnProperty(`isAllFields${this.raycache.postFix}`)
                     )
                 ) {
 
@@ -138,6 +139,7 @@ module.exports = (mongoose, cache) => {
 
 
 
+                            console.log('readed from mongo')
                             cache.set(model
                                 , this.raycache.redisKey
                                 , results
@@ -154,6 +156,7 @@ module.exports = (mongoose, cache) => {
                             reject(err);
                         });
                 } else {
+                    console.log('readed from redis')
 
                     callback(null, found.obj);
                     return resolve(found.obj);

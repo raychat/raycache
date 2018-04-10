@@ -35,7 +35,7 @@ class Cache extends EventEmitter {
      * constructor with async await
      * @param {Object} db 
      */
-    async _initialize(db, options) {
+    _initialize(db, options) {
 
 
         this.collections = new Map();
@@ -45,24 +45,28 @@ class Cache extends EventEmitter {
         this._options = options;
         this._redisDatabaseCount = 15;
         this._postfix = this._options.postfixType || '_raycacheType'
+        this.collectionss = this._options.collections
+
 
         this.ttl = this._options.options.ttl || 3000
         this.defaultKeys = { mongoose: '_id' }
         this.stringify = this._options.stringify || false;
         this.alwaysReturnedField = this._options.alwaysReturnedField;
 
-        this._setCollections(db)
 
 
         this.on('ray_task', (res) => {
             this._manageTasks(res);
         })
         this.on('ray_error', (err) => {
-            console.error(err)
+            console.error(`raycache:`, err.message)
         })
         this.on('ray_command', (res) => {
             console.log(`command ${res.commandName} called`)
         })
+
+        this._setCollections(db)
+
 
     }
 
@@ -70,7 +74,7 @@ class Cache extends EventEmitter {
 
     // manage event listener
     _manageTasks(entity) {
-        console.log('event task fired => ', entity.task)
+        // console.log('event task fired => ', entity.task)
 
         switch (entity.task) {
 
@@ -96,62 +100,25 @@ class Cache extends EventEmitter {
      */
     _setCollections(connection) {
 
-        let collections = []
-
-        connection.connection.on('open', ref => {
-            connection.connection.db.listCollections().toArray((err, names) => {
-                if (err) {
-                    this.emit('ray_error', { message: err, errorNumber: 1002 })
-                    return;
-                }
-
-                if (names.length) {
-                    names.forEach(key => {
-                        collections.push(key.name)
-                    })
-                    // get all current database collections
-
-                    if (!this._options.autoCollections || typeof this._options.autoCollections == 'boolean') {
-                        let db = 0;
-                        for (const collection of collections) {
-                            this.collections.set(collection, db);
-                            db++;
-                            if (db > this._redisDatabaseCount) {
-                                db = 0;
-                            }
-                        }
-                    }
-                    else {
-                        const collectionsList = Object.keys(this._options.autoCollections)
-                        for (const [index, collection] of collections.entries()) {
-                            for (const collectionName of collectionsList) {
-                                if (collectionName == collection) {
-
-                                    if (this._options.autoCollections[collectionName] >= 0 && this._options.autoCollections[collectionName] <= this._redisDatabaseCount) {
-                                        this.collections.set(collectionName, this._options.autoCollections[collectionName])
-                                    }
-                                    else {
-                                        this.emit('ray_error', { message: "invalid database number", errorNumber: 1000 })
-                                        return false;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    this.emit('ray_task', { task: 'setCollections' })
-                }
-
-
-            });
-        })
+        let collections = this.collectionss || []
+        if (_.isEmpty(collections)) {
+            this.emit('ray_error', { message: "invalid collections", errorNumber: 1002 })
+            return false;
+        }
 
 
 
+        // get all current database collections
 
+        let db = 0;
+        for (const collection of collections) {
+            this.collections.set(collection, db);
+            db++;
+            if (db > this._redisDatabaseCount) db = 0;
 
+        }
 
-
+        this.emit('ray_task', { task: 'setCollections' })
 
     }
 
@@ -160,7 +127,7 @@ class Cache extends EventEmitter {
     /**
      * create redis client 
      */
-    async _setClients() {
+    _setClients() {
 
 
 
@@ -187,7 +154,7 @@ class Cache extends EventEmitter {
      * @param {Boolean} isAllfields 
      */
     set(collection, redisKey, ent, expire, isAllfields) {
-        return new Promise(async (resolve, reject) => {
+        return new Promise((resolve, reject) => {
 
             let arr = [];
             let thisFieldType;
@@ -206,7 +173,7 @@ class Cache extends EventEmitter {
             }
 
             arr.push(...getKeysValues(entity, this._postfix))
-            if (isAllfields) arr.push(...[`isAllFields_${this._postfix}`, true])
+            if (isAllfields) arr.push(...[`isAllFields${this._postfix}`, true])
             try {
 
                 this.emit('ray_command', { commandName: 'hmset' })
@@ -234,7 +201,7 @@ class Cache extends EventEmitter {
 
             let obj = {}
             const notFounds = []
-
+            let isAllfields = false
 
             // if needed fields is defined
             if (fields && Array.isArray(fields) && fields.length > 0) {
@@ -297,9 +264,12 @@ class Cache extends EventEmitter {
 
                 this.emit('ray_command', { commandName: 'hgetall' })
 
+
                 // get all values with given key
                 obj = await this.clients[collection]
-                    .hgetallAsync(redisKey)
+                    .hgetallAsync(redisKey);
+
+                if (!_.isNull(obj) && obj.hasOwnProperty(`isAllFields${this._postfix}`)) isAllfields = true;
 
 
             }
@@ -312,7 +282,8 @@ class Cache extends EventEmitter {
 
             obj = clearObj(obj, this._postfix, this._validTypesArr)
 
-            if (obj.hasOwnProperty(`isAllFields_${this._postfix}`)) delete obj[`isAllFields_${this._postfix}`]
+            if (isAllfields) obj[`isAllFields${this._postfix}`] = true
+
 
             resolve({ obj, notFounds })
 
