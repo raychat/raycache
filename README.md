@@ -4,7 +4,7 @@ raycache is a simple module which make you able to cache mongodb documents witho
 important: raycache compatible with mongoose 4.1 or higher version
 ```
 ### How it works
-When you trying to cache a document which contain ```id```, ```name```, ```active``` fields, it immediately save this docuement into redis in-memory database using ```hmset``` command like this: 
+When you trying to cache a document which contain ```id```, ```name```, ```active``` fields, it immediately save this docuement into redis in-memory database using [hmset](https://redis.io/commands/hmset) command like this: 
 
 ```main key: 123```
 
